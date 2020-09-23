@@ -1,0 +1,80 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.provision "shell", inline: "echo Hello"
+  config.vbguest.installer_options = { allow_kernel_upgrade: true }
+  config.vbguest.iso_path = "VBoxGuestAdditions_%{version}.iso"
+  config.dotenv.enabled = true
+
+  config.vm.define "docker-swarm-master-01", primary: true do |master|
+    master.vm.box = "centos/8"
+    master.vm.hostname = "docker-swarm-master-01"
+    # master.vm.network "private_network", ip: "192.168.20.20", virtualbox__intnet: true, hostname: true
+    master.vm.network :public_network, ip: "192.168.0.0", name: "vboxnet1"
+    master.vm.network "private_network", ip: "172.0.0.0", name: "vboxnet3", virtualbox__intnet: true
+    master.vm.network "forwarded_port", guest: 80, host: 8080
+    master.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 2
+    end
+    
+    master.vm.synced_folder "../pki", "/vagrant/pki", type:"virtualbox", id: "config"
+    master.vm.provision :shell, path: "bootstrap.sh"
+    master.vm.provision :shell, 
+      inline: "sudo cp -a /vagrant/pki/server/docker-swarm-master-01/{server-key.pem,ca.pem,daemon.json} /etc/docker/ &&
+                sudo chmod 600 /etc/docker/server-key.pem &&
+                sudo cp -a /vagrant/pki/server/docker-swarm-master-01/docker-swarm-master-01.pem /etc/docker/server.pem"
+
+    # master.vm.provision "file", source: Dir.getwd + "/../pki/server/docker-swarm-master-01/server-key.pem", destination: "/etc/docker/server-key.pem"
+    # master.vm.provision "file", source: Dir.getwd + "/../pki/server/docker-swarm-master-01/ca.pem", destination: "/etc/docker/ca.pem"
+    # master.vm.provision "file", source: Dir.getwd + "/../pki/server/docker-swarm-master-01/docker-swarm-master-01.pem", destination: "/etc/docker/server.pem"
+    # master.vm.provision "file", source: Dir.getwd + "/../pki/server/docker-swarm-master-01/daemon.json", destination: "/etc/docker/daemon.json"
+    # master.vm.provision "file", source: Dir.getwd + "/../pki/server/docker-swarm-master-01/override.conf", destination: "/etc/systemd/system/docker.service.d/override.conf"
+  end
+
+  # config.vm.define "docker-swarm-master-02" do |master|
+  #   master.vm.box = "centos/8"
+  #   master.vm.hostname = "docker-swarm-master-02"
+  #   master.vm.network "public_network", ip: "192.168.55.21", hostname: true
+  #   master.vm.provider "virtualbox" do |vb|
+  #     vb.memory = "2048"
+  #     vb.cpus = 2
+  #   end
+  #   master.vm.provision :shell, path: "bootstrap.sh"
+  # end
+
+  config.vm.define "docker-swarm-node-01" do |node|
+    node.vm.box = "centos/8"
+    node.vm.hostname = "docker-swarm-node-01"
+    node.vm.network "private_network", ip: "172.0.0.0", name: "vboxnet3", virtualbox__intnet: true
+    node.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 2
+    end
+    node.vm.provision :shell, path: "bootstrap.sh"
+  end
+
+  config.vm.define "docker-swarm-node-02" do |node|
+    node.vm.box = "centos/8"
+    node.vm.hostname = "docker-swarm-node-02"
+    node.vm.network "private_network", ip: "172.0.0.0", name: "vboxnet3", virtualbox__intnet: true
+    node.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 2
+    end
+    node.vm.provision :shell, path: "bootstrap.sh"
+  end
+
+  # config.vm.define "docker-swarm-node-03" do |node|
+  #   node.vm.box = "centos/8"
+  #   node.vm.hostname = "docker-swarm-node-03"
+  #   node.vm.network "public_network", ip: "192.168.0.0", hostname: true
+  #   node.vm.provider "virtualbox" do |vb|
+  #     vb.memory = "2048"
+  #     vb.cpus = 2
+  #   end
+  #   node.vm.provision :shell, path: "bootstrap.sh"
+  # end
+end
+
